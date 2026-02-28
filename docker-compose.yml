@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  nexus:
+    image: sonatype/nexus3:3.70.1
+    container_name: nexus
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus-data:/nexus-data
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-task
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: task_db
+      MYSQL_USER: task_user
+      MYSQL_PASSWORD: task_pass
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "task_user", "-ptask_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  nexus-data:
+  mysql-data:
