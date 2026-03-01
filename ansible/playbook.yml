@@ -1,0 +1,108 @@
+---
+- name: Deploy Task API on Ubuntu VM
+  hosts: vm
+  become: yes
+
+  tasks:
+
+    # ── 1. Docker ──────────────────────────────────────────────────────────
+    - name: Install Docker dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker CE
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Configure Docker to use vfs storage driver (VirtualBox compatibility)
+      copy:
+        dest: /etc/docker/daemon.json
+        content: '{"storage-driver": "vfs"}'
+
+    - name: Start and enable Docker
+      service:
+        name: docker
+        state: restarted
+        enabled: yes
+
+    # ── 2. MySQL (Docker) ──────────────────────────────────────────────────
+    - name: Stop existing mysql container if any
+      shell: docker stop mysql-task && docker rm mysql-task
+      ignore_errors: yes
+
+    - name: Run MySQL container
+      shell: >
+        docker run -d
+        --name mysql-task
+        --network host
+        --restart always
+        -e MYSQL_DATABASE=task_db
+        -e MYSQL_USER=task_user
+        -e MYSQL_PASSWORD=task_pass
+        -e MYSQL_ROOT_PASSWORD=root
+        -p 3306:3306
+        mysql:8.0
+
+    - name: Wait for MySQL to be ready
+      wait_for:
+        port: 3306
+        delay: 20
+        timeout: 120
+
+    # ── 3. Deploy task-api ─────────────────────────────────────────────────
+    - name: Pull task-api Docker image
+      shell: docker pull cheikhkanteye/task-api:latest
+
+    - name: Stop and remove existing task-api container
+      shell: docker stop task-api && docker rm task-api
+      ignore_errors: yes
+
+    - name: Run task-api container
+      shell: >
+        docker run -d
+        --name task-api
+        --network host
+        --restart always
+        -p 8085:8085
+        cheikhkanteye/task-api:latest
+
+    # ── 4. Verify ──────────────────────────────────────────────────────────
+    - name: Wait for API to be ready
+      wait_for:
+        port: 8085
+        delay: 15
+        timeout: 60
+
+    - name: Verify /api/tasks endpoint
+      uri:
+        url: http://localhost:8085/api/tasks
+        method: GET
+        status_code: 200
+      register: api_result
+
+    - name: API response status
+      debug:
+        msg: "API is UP - status {{ api_result.status }}"
+

@@ -14,7 +14,7 @@
 
     <groupId>sn.isi.l3gl.core</groupId>
     <artifactId>task-core</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.3.0</version>
     <packaging>jar</packaging>
     <name>task-core</name>
     <description>Module metier Task Core</description>

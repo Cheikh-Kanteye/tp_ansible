@@ -1,0 +1,4 @@
+sn/isi/l3gl/core/service/TaskService.class
+sn/isi/l3gl/core/enums/TaskStatus.class
+sn/isi/l3gl/core/entity/Task.class
+sn/isi/l3gl/core/repository/TaskRepository.class
